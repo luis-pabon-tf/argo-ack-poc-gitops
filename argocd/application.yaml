@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-function
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/luis-pabon-tf/argo-ack-poc-gitops.git
+    targetRevision: main
+    path: apps/sample-function
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
