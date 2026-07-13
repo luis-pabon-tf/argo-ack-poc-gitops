@@ -1,0 +1,28 @@
+jenkins:
+  systemMessage: "Argo CD + ACK GitOps POC Jenkins"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              scope: GLOBAL
+              id: "gitops-pr-pat"
+              secret: "${GITOPS_PR_PAT}"
+              description: "PAT scoped to opening PRs against argo-ack-poc-gitops"
+          - usernamePassword:
+              scope: GLOBAL
+              id: "gitops-pat-checkout"
+              username: "x-access-token"
+              password: "${GITOPS_PR_PAT}"
+              description: "Same PAT, used for git checkout of the private app-repo"

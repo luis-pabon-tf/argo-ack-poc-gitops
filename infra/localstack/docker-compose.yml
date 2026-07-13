@@ -1,0 +1,26 @@
+services:
+  localstack:
+    container_name: localstack
+    image: localstack/localstack:2026.06.2
+    ports:
+      - "4566:4566"
+    environment:
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
+      - SERVICES=lambda,iam,s3,sts,logs
+      - DEBUG=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "localstack-data:/var/lib/localstack"
+    networks:
+      default:
+      kind:
+        aliases:
+          - localstack
+
+volumes:
+  localstack-data:
+
+networks:
+  kind:
+    external: true
