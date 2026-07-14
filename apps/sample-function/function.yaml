@@ -11,7 +11,7 @@ spec:
   role: arn:aws:iam::000000000000:role/lambda-poc-role
   code:
     s3Bucket: poc-lambda-artifacts
-    s3Key: handler-6d6f000.zip
+    s3Key: handler-5a5cb85.zip
     sha256: jbQ35Q+lAaSgLl39ixw0mY4mgh8OWQrsJZNasy8JX90=
   memorySize: 128
   timeout: 3
