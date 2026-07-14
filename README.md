@@ -28,16 +28,23 @@ ECS-specific behavior is explicitly **not** proven here (see "Divergences" below
 ## Architecture (as built)
 
 ```
-Dev PR (app-repo) → human merge
+Dev PR (app-repo) → human merge  [only human step in the loop]
     → Jenkins (SCM-polling trigger, no webhook reachable locally)
         → zips handler.py, uploads to LocalStack S3 (poc-lambda-artifacts)
         → opens a PR against gitops-repo bumping Function.spec.code.s3Key
-    → human merge (2nd approval gate — the deploy gate)
+        → diff-guards the PR (must touch only that one s3Key line), then
+          merges it itself and deletes the branch — no second human click
     → Argo CD auto-syncs gitops-repo → cluster (selfHeal: true, prune: true)
     → ACK lambda-controller (only component holding AWS-equivalent credentials)
         reconciles the Function CR against LocalStack's Lambda API
     → invoking the function reflects the change
 ```
+
+The gitops-repo PR is **not** a second human approval gate. It only ever changes one
+line (`s3Key`) — it exists for traceability (every deploy is still tied to a merged PR
+you can look up later), not for review. Jenkins verifies the diff is exactly that one
+line before merging; anything else aborts the pipeline instead of auto-merging. See
+`NOTES.md` for why this diverges from the original plan's two-human-gate design.
 
 ## Standing the whole environment up from scratch
 
@@ -94,8 +101,9 @@ Write).
    `argo-ack-poc-app`'s `Jenkinsfile`, all from environment variables — no manual setup
    wizard. Jenkins UI: http://localhost:8081.
 
-7. **Drive it.** Merge a PR on `argo-ack-poc-app` → within a minute Jenkins builds and
-   opens a PR here → merge that → Argo CD syncs → ACK reconciles → the function is live.
+7. **Drive it.** Merge a PR on `argo-ack-poc-app` → within a minute Jenkins builds,
+   opens a PR here, and merges it itself → Argo CD syncs → ACK reconciles → the
+   function is live. That one merge is the only manual step in the whole loop.
 
 ## Teardown
 
@@ -117,6 +125,11 @@ Full detail and reasoning in `NOTES.md`; summary:
 - **No Argo CD Image Updater.** With no container registry in the loop, there's no image
   tag to watch. Jenkins opens the gitops PR directly instead — functionally equivalent,
   but a different component than the plan originally called for.
+- **Gitops-repo PR auto-merges — no second human gate.** The original plan called for
+  two separate human approval gates (code review on app-repo, deploy approval on
+  gitops-repo). Since the gitops PR only ever changes one mechanical field, it's
+  diff-guarded and auto-merged by Jenkins instead of waiting on a human. Traceability
+  (every deploy ties to a merged PR) is preserved; the second review gate is not.
 - **Jenkins triggers on SCM polling, not a webhook.** Jenkins has no public ingress
   locally; polling every minute substitutes for what would be a webhook in the real
   environment.

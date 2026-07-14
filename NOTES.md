@@ -37,3 +37,32 @@ Jenkins runs as a local Docker container with no public ingress, so GitHub canno
 deliver a webhook to it. Using `pollSCM('* * * * *')` (checks app-repo every minute)
 as the local substitution. In the real environment this would be a webhook-triggered
 build instead — polling is a POC-only workaround, not something to carry forward.
+
+## 2026-07-14 — Gitops-repo PR is auto-merged, removing the original second human gate
+The original build plan called for two separate human approval gates: code review on
+`app-repo`, and a separate deploy approval on `gitops-repo` (its own PR merge). In
+practice the gitops-repo PR only ever changes one field (`s3Key`) — it's a mechanical
+"kick Argo CD" step, not a code-review decision, so a human clicking merge on it added
+toil without adding judgment.
+
+**Decision:** Jenkins now merges that PR itself, right after opening it, using the
+same PAT it already had (fine-grained PAT scoped to Contents + Pull requests on both
+repos — no scope broadened; merging a PR only needs Contents: write, already granted).
+Checked first whether GitHub's native auto-merge queue was a better fit: it isn't,
+since the repo's `allow_auto_merge` setting is off and turning it on requires an
+Administration-scoped token, which would have meant broadening the PAT beyond what
+it needs. A direct merge call avoids that.
+
+**Safety net:** before pushing, Jenkins asserts the diff touches exactly one file
+(`apps/sample-function/function.yaml`) and exactly one changed line pair, both sides
+matching `s3Key:`. Anything else (a bug, a bad rebase, tampering) aborts the pipeline
+loudly instead of silently auto-merging. This is what makes removing the human gate
+here defensible — an unattended merge only ever lands the one deterministic bump it's
+supposed to.
+
+**What this trades away:** success criterion #1 in the build plan ("a single
+human-reviewed PR merge on app-repo, followed by a single human-reviewed PR merge on
+gitops-repo...") is no longer literally true — there's only one human-reviewed merge
+now (app-repo). Traceability is preserved (every deploy still ties to a real, merged
+PR on gitops-repo, per criterion #4), just not human-approved. This was an explicit,
+discussed tradeoff, not something that happened silently.
